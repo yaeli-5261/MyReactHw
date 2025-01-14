@@ -1,17 +1,16 @@
 
-import { createContext, Dispatch, useEffect, useReducer, useRef, useState } from "react"
+import { createContext, Dispatch, FormEvent, useEffect, useReducer, useRef, useState } from "react"
 import {
     Button,
     Grid2 as Grid,
     Modal,
     Box,
-    Input,
     TextField,
     Typography
 } from "@mui/material";
 import { Action, User, userType } from "./User";
 import ShowNameAvatar from "./ShowNameAvatar";
-import updateUser from "./updateUser";
+import axios from "axios";
 
 const style = {
     position: 'absolute',
@@ -24,81 +23,108 @@ const style = {
     boxShadow: 24,
     p: 4,
 };
-export const userContext = createContext<[userType,Function]>([
+export const userContext = createContext<[userType, Function]>([
     {} as userType,
     () => { },
 ]);
 const Login = () => {
 
-    const nameRef = useRef<HTMLInputElement>(null)
-    const passwordRef = useRef<HTMLInputElement>(null)
+    const passwordRef = useRef<HTMLInputElement>(null)//מעדכן את השינויים
+    const emailRef = useRef<HTMLInputElement>(null)//מעדכן את השינויים
 
     const [myUser, UsersDispatch] = useReducer(User, {} as userType)
 
     const [open, setOpen] = useState(false);
-    const handleOpen = () => setOpen(true);
-    const handleClose = () => setOpen(false);
-
     const [isLogin, setIsLogin] = useState(false);
+    const [userID, setUserId] = useState();
+    const [typeConnection, setTypeConnection] = useState('');
 
-    useEffect(() => {
-        handleSubmitLogIn();
-    }, [])
+    const handleSubmitSign = async (e: FormEvent) => {
+        e.preventDefault();
+        if (typeConnection == 'SignUp') {
+            try {
+                const res = await axios.post('http://localhost:3000/api/user/register', {
 
-    const handleSubmitLogIn = () => {
-        UsersDispatch(
-            {
-                type: 'ADD',
-                data: {
-                    firstName: nameRef.current?.value || "",
-                    password: passwordRef.current?.value || "",
-                    lastName: "",
-                    address: "",
-                    pel: "",
-                    email: "",
+                    email: emailRef.current?.value,
+                    password: passwordRef.current?.value
+                })
+                console.log(myUser);
+                UsersDispatch(
+                    {
+                        type: 'ADD',
+                        data: {
+                            id: res.data.userId,
+                            password: passwordRef.current?.value || "",
+                            email: emailRef.current?.value || ""
+                        }
+                    }
+                )
+                setOpen(false);
+                setIsLogin(true);
+
+            }
+            catch (e: any) {
+                if (e.response?.status === 404) {
+                    alert('Invalid credentials')
                 }
             }
-        )
+        }
+        else {
+            try {
+                const res = await axios.post('http://localhost:3000/api/user/login', {
+
+                    email: emailRef.current?.value,
+                    password: passwordRef.current?.value
+
+                }
+                    , { headers: { 'user-id': '' + userID } })
+                console.log(myUser);
+                UsersDispatch(
+                    {
+                        type: 'ADD',
+                        data: {
+                            id: res.data.user.id,
+                            password: passwordRef.current?.value || "",
+                            email: emailRef.current?.value || ""
+                        }
+                    }
+                )
+                // setUserId(res.data.user.id);
+                setOpen(false);
+                setIsLogin(true);
+            }
+            catch (e: any) {
+                if (e.response?.status === 401) {
+                    alert('Invalid credentials')
+                }
+            }
+        }
     }
-   
     return (<>
         <userContext.Provider value={[myUser, UsersDispatch]}>
-
-            <Grid container>
-                <Grid size={4}>
-                    {!isLogin ?(
-                        <Button color="primary" variant="contained" onClick={() => setOpen(!open)}>Login</Button>) :
-                      <ShowNameAvatar />}
-                </Grid>
-            </Grid>
-
+            {!isLogin ? (
+                <><Button color="primary" variant="contained" onClick={() => { setOpen(true); setTypeConnection('SignIn'); }}>Sign In</Button>
+                    <Button color="primary" variant="contained" onClick={() => { setOpen(true); setTypeConnection('SignUp'); }}>Sign Up</Button></>
+            ) :
+                <ShowNameAvatar />}
             <Modal
                 open={open}
-                onClose={handleClose}
-                aria-labelledby="modal-modal-title"
-                aria-describedby="modal-modal-description"
+                onClose={() => { }}
+                // aria-labelledby="modal-modal-title"
+                // aria-describedby="modal-modal-description"
             >
                 <Box sx={style}>
-                    <Typography id="modal-modal-title" variant="h6" component="h2">
-                        הכנס פרטים
+                    <Typography id="modal-modal-title" variant="h6" component={'span'}>
+                        Enter Your Details
                     </Typography>
                     <Typography id="modal-modal-description" sx={{ mt: 2 }}>
-                        <TextField label='שם משתמש' inputRef={nameRef}/>
+                        <TextField type="password" label=' password' inputRef={passwordRef} />
                         <div></div>
-                        <TextField label='סיסמא' inputRef={passwordRef}/>
-                        <Button onClick={() => {
-                            handleSubmitLogIn();
-                            setOpen(false);
-                            setIsLogin(true)
-                        }}>Login</Button>
+                        <TextField label='email' inputRef={emailRef} />
+                        <Button onClick={handleSubmitSign}>Login</Button>
                     </Typography>
-
                 </Box>
-
             </Modal>
-
-            {/* <ShowNameAvatar/>      
-           <updateUser/>     */}
         </userContext.Provider>
     </>)
 
